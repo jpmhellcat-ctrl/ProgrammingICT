@@ -1,0 +1,1042 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Dev Dashboard - Exam Edition</title>
+    <style>
+        :root {
+            --bg-color: #121212;
+            --card-bg: #1e1e1e;
+            --text-main: #e0e0e0;
+            --text-muted: #9e9e9e;
+            --accent: #4caf50;
+            --accent-hover: #45a049;
+            --code-bg: #2d2d2d;
+            --highlight: #ff5252;
+            --sorted: #81c784;
+            --warning: #ffb74d;
+            --info: #29b6f6;
+            --csharp: #9b4993;
+            --winforms: #0078d7;
+        }
+
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background-color: var(--bg-color);
+            color: var(--text-main);
+            padding: 2rem;
+            line-height: 1.6;
+        }
+
+        header { margin-bottom: 1.5rem; display: flex; justify-content: space-between; align-items: flex-end; }
+        h1 { font-size: 2rem; color: var(--accent); margin-bottom: 0.2rem; }
+
+        /* Suchleiste */
+        .search-container { margin-bottom: 1.5rem; width: 100%; }
+        .search-input {
+            width: 100%; padding: 12px 15px;
+            background-color: var(--code-bg);
+            border: 1px solid #444; border-radius: 6px;
+            color: var(--text-main); font-size: 1rem;
+            transition: border-color 0.2s;
+        }
+        .search-input:focus { outline: none; border-color: var(--accent); }
+
+        .main-nav {
+            display: flex; gap: 10px; margin-bottom: 2rem;
+            border-bottom: 2px solid #333; padding-bottom: 15px; flex-wrap: wrap;
+        }
+        .main-nav button {
+            flex: 1; padding: 12px 20px;
+            background: var(--card-bg); color: var(--text-muted);
+            border: 1px solid #333; border-radius: 6px;
+            cursor: pointer; font-size: 1rem; font-weight: bold;
+            transition: all 0.2s; min-width: 140px;
+        }
+        .main-nav button:hover { color: var(--text-main); border-color: #555; transform: translateY(-2px); }
+        .main-nav button.active { background: var(--accent); color: #121212; border-color: var(--accent); }
+
+        .page-content { display: none; animation: fadeIn 0.3s ease-in-out; }
+        .page-content.active { display: block; }
+        .page-content.search-mode { display: block !important; } 
+        
+        @keyframes fadeIn { from { opacity: 0; transform: translateY(5px); } to { opacity: 1; transform: translateY(0); } }
+
+        .dashboard-grid {
+            display: grid; grid-template-columns: repeat(auto-fit, minmax(350px, 1fr));
+            gap: 1.5rem; align-items: start;
+        }
+
+        .card {
+            background-color: var(--card-bg); border-radius: 8px;
+            padding: 1.5rem; box-shadow: 0 4px 6px rgba(0,0,0,0.3);
+        }
+        .card.full-width { grid-column: 1 / -1; }
+        .card.csharp-card { border-top: 3px solid var(--csharp); }
+        .card.winforms-card { border-top: 3px solid var(--winforms); }
+
+        .card h2 {
+            font-size: 1.2rem; margin-bottom: 1rem; color: var(--text-main);
+            border-bottom: 1px solid #333; padding-bottom: 0.5rem;
+            display: flex; justify-content: space-between; align-items: center;
+        }
+
+        ul { list-style: none; margin-bottom: 1rem; }
+        ul li { margin-bottom: 0.5rem; }
+        ul.checklist li { display: flex; align-items: center; gap: 8px; }
+        
+        a { color: var(--accent); text-decoration: none; transition: color 0.2s; }
+        a:hover { color: var(--accent-hover); }
+
+        pre {
+            background-color: var(--code-bg); padding: 1rem; border-radius: 4px;
+            overflow-x: auto; font-family: 'Courier New', Courier, monospace;
+            font-size: 0.85rem; margin-bottom: 1rem; border-left: 3px solid var(--accent);
+            max-height: 500px;
+        }
+        .code-csharp { border-left-color: var(--csharp); }
+        .code-winforms { border-left-color: var(--winforms); }
+
+        .rosetta-table { width: 100%; border-collapse: collapse; font-size: 0.9rem; margin-bottom: 1rem; }
+        .rosetta-table th, .rosetta-table td { padding: 0.8rem; border: 1px solid #333; text-align: left; vertical-align: top; }
+        .rosetta-table th { background-color: #2d2d2d; color: var(--text-main); }
+        .rosetta-table code { background-color: #1a1a1a; padding: 0.2rem 0.4rem; border-radius: 3px; color: var(--accent); font-family: monospace; }
+        .rosetta-table .csharp-code { color: var(--csharp); }
+
+        textarea {
+            width: 100%; height: 150px; background-color: var(--code-bg); color: var(--text-main);
+            border: 1px solid #333; border-radius: 4px; padding: 0.5rem;
+            font-family: inherit; resize: vertical;
+        }
+        textarea:focus { outline: none; border-color: var(--accent); }
+        .status-text { font-size: 0.8rem; color: var(--text-muted); margin-top: 0.5rem; }
+        
+        .btn-small { background: none; border: 1px solid #555; color: var(--text-muted); padding: 0.2rem 0.5rem; font-size: 0.8rem; border-radius: 4px; cursor: pointer; }
+        .btn-small:hover { color: var(--highlight); border-color: var(--highlight); }
+        .alert-box { background-color: rgba(255, 183, 77, 0.1); border-left: 4px solid var(--warning); padding: 1rem; border-radius: 0 4px 4px 0; margin-bottom: 1rem;}
+
+        /* Timer Setup */
+        .timer-display { font-size: 2.5rem; font-weight: bold; color: var(--accent); font-family: monospace; text-align: center; margin-top: 1rem; letter-spacing: 2px;}
+        .timer-controls { display: flex; gap: 10px; justify-content: center; margin-top: 0.5rem; }
+        .timer-controls input { background: var(--code-bg); color: var(--text-main); border: 1px solid #555; padding: 5px; width: 60px; border-radius: 4px; text-align: center;}
+        
+        .visualizer-container { display: flex; align-items: flex-end; height: 140px; margin-bottom: 1rem; gap: 4px; background-color: var(--code-bg); padding: 10px; border-radius: 4px; }
+        .bar { flex: 1; background-color: var(--accent); border-radius: 3px 3px 0 0; transition: background-color 0.1s ease, height 0.1s ease; display: flex; align-items: flex-end; justify-content: center; color: #121212; font-size: 0.8rem; font-weight: bold; padding-bottom: 4px; }
+        .btn-group { display: flex; gap: 0.5rem; margin-bottom: 1rem; }
+        button.action-btn { background-color: var(--bg-color); color: var(--text-main); border: 1px solid #555; padding: 0.4rem 0.8rem; border-radius: 4px; cursor: pointer; transition: 0.2s; }
+        button.action-btn:hover { border-color: var(--accent); color: var(--accent); }
+
+        /* 🖨️ PRINT CSS - Für das Notfall-Backup auf Papier */
+        @media print {
+            body { background: white; color: black; padding: 0; font-size: 11pt; }
+            .search-container, .main-nav, .btn-small, .action-btn, .timer-controls, header p { display: none !important; }
+            .page-content { display: block !important; page-break-after: always; }
+            .dashboard-grid { display: block; }
+            .card { background: white; border: 1px solid #ccc; box-shadow: none; margin-bottom: 1.5rem; page-break-inside: avoid; border-top-width: 4px; }
+            pre { background: #f4f4f4; border: 1px solid #ddd; color: black; white-space: pre-wrap; font-size: 10pt; max-height: none; }
+            textarea { display: none; }
+            h1 { color: black; border-bottom: 2px solid black; padding-bottom: 10px; }
+            .rosetta-table th { background-color: #eee; color: black; }
+            .rosetta-table code { background-color: transparent; color: black; font-weight: bold; }
+            * { color: black !important; }
+        }
+    </style>
+</head>
+<body>
+
+    <header>
+        <div>
+            <h1>Developer Dashboard</h1>
+            <p>Dein strukturierter Hub für Code, Logik und Visualisierungen.</p>
+        </div>
+    </header>
+
+    <!-- GLOBALE SUCHE -->
+    <div class="search-container">
+        <input type="text" id="searchInput" class="search-input" onkeyup="filterCards()" placeholder="🔍 Live-Suche (z.B. Array, Try, Catch, File, Microbit, Überladung, Trim, byte, sbyte)...">
+    </div>
+
+    <nav class="main-nav" id="mainNav">
+        <button class="nav-link active" onclick="switchPage('page-home')">📝 Notizen & Timer</button>
+        <button class="nav-link" onclick="switchPage('page-standort')">🎯 Standort</button>
+        <button class="nav-link" onclick="switchPage('page-theorie')">🧠 Theorie & Glossar</button>
+        <button class="nav-link" onclick="switchPage('page-snippets')">💻 Praxis (Python)</button>
+        <button class="nav-link" style="color: var(--csharp); border-color: var(--csharp);" onclick="switchPage('page-csharp')">🪟 C# & WinForms</button>
+        <button class="nav-link" onclick="switchPage('page-krypto')">🔐 Algorithmen</button>
+    </nav>
+
+    <main>
+        <!-- SEITE 1: HOME / NOTIZEN -->
+        <div id="page-home" class="page-content active">
+            <div class="dashboard-grid">
+                
+                <section class="card">
+                    <h2>Aufgaben & Notizen <button class="btn-small" onclick="clearTasks()">Leeren</button></h2>
+                    <textarea id="task-pad" placeholder="Notizen werden beim Tippen automatisch gespeichert..."></textarea>
+                    <div class="status-text" id="save-status">Lokal gespeichert.</div>
+                </section>
+
+                <section class="card">
+                    <h2>⏱️ Prüfungs-Setup & Timer</h2>
+                    <ul class="checklist" style="font-size: 0.9rem;">
+                        <li><input type="checkbox"> Visual Studio / Python Editor geöffnet</li>
+                        <li><input type="checkbox"> Micro:bit per USB verbunden</li>
+                        <li><input type="checkbox"> Leeres Projekt/Datei angelegt</li>
+                        <li><input type="checkbox"> Handy stumm & weggelegt</li>
+                    </ul>
+                    <div class="timer-display" id="time-left">60:00</div>
+                    <div class="timer-controls">
+                        <input type="number" id="timer-mins" value="60" title="Minuten">
+                        <button class="action-btn" onclick="startTimer()">Start</button>
+                        <button class="action-btn" onclick="stopTimer()">Stop / Reset</button>
+                    </div>
+                </section>
+                
+                <section class="card full-width">
+                    <h2>Quick Links & Doku</h2>
+                    <ul style="display: flex; gap: 20px; flex-wrap: wrap;">
+                        <li><a href="https://docs.python.org/3/" target="_blank">Python 3 Doku</a></li>
+                        <li><a href="https://learn.microsoft.com/de-de/dotnet/csharp/" target="_blank">C# (.NET) Doku</a></li>
+                        <li><a href="https://regex101.com/" target="_blank">Regex101 Tester</a></li>
+                        <li><a href="https://www.w3schools.com/" target="_blank">W3Schools</a></li>
+                    </ul>
+                </section>
+            </div>
+        </div>
+
+        <!-- SEITE 2: STANDORTBESTIMMUNG -->
+        <div id="page-standort" class="page-content">
+            <div class="dashboard-grid">
+                
+                <section class="card csharp-card full-width">
+                    <h2>C# Logik-Rätsel & Array-Operationen</h2>
+                    <div class="dashboard-grid" style="grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); margin-bottom: 0;">
+                        <div>
+                            <h3 style="color: var(--csharp); font-size: 1rem;">Post- vs. Prä-Dekrement</h3>
+                            <pre class="code-csharp"><code>int a = 24;
+int b = 33;
+// b-- (Post): Wert bleibt 33 für Rechnung
+// --a (Prä) : Wert wird sofort 23
+int calc = b-- % --a; // 33 % 23 = 10</code></pre>
+                        </div>
+                        <div>
+                            <h3 style="color: var(--csharp); font-size: 1rem;">Trick: Array umkehren mit count++</h3>
+                            <pre class="code-csharp"><code>static int[] Invert(int[] list)
+{
+    int[] temp = new int[list.Length];
+    int count = 0;
+    // Schleife läuft rückwärts
+    for(int c = list.Length - 1; c >= 0; c--)
+    {
+        temp[count++] = list[c];
+    }
+    return temp;
+}</code></pre>
+                        </div>
+                    </div>
+                </section>
+
+                <section class="card full-width">
+                    <h2>Python Syntax & Logik-Fallen</h2>
+                    <div class="dashboard-grid" style="grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));">
+                        <div>
+                            <ul style="font-size: 0.9rem;">
+                                <li><strong>range(10, 0):</strong> Gibt nichts aus! Rückwärts: <code>range(10, 0, -1)</code></li>
+                                <li><strong>Vergleiche in if:</strong> Zwingend <code>==</code> nutzen, nicht <code>=</code>.</li>
+                                <li><strong>String + Zahl:</strong> Immer casten: <code>"Alter: " + str(23)</code></li>
+                            </ul>
+                        </div>
+                        <div class="alert-box">
+                            <h4 style="color: var(--warning); margin-bottom: 0.5rem;">Modulo (%) vs. Division (//)</h4>
+                            <p style="font-size: 0.9rem;">
+                                <code>44 // 150</code> ergibt <strong>0</strong> (Passt 0 mal rein).<br>
+                                <code>44 % 150</code> ergibt <strong>44</strong> (Der Rest).
+                            </p>
+                        </div>
+                    </div>
+                </section>
+            </div>
+        </div>
+
+        <!-- SEITE 3: MODUL & THEORIE & GLOSSAR -->
+        <div id="page-theorie" class="page-content">
+            <div class="dashboard-grid">
+                
+                <section class="card full-width">
+                    <h2>📚 Cheat-Sheet: Die wichtigsten Funktionen (Was macht was?)</h2>
+                    <p style="font-size: 0.9rem; margin-bottom: 1rem; color: var(--text-muted);">
+                        Hier findest du die absoluten Standard-Befehle, die in fast jeder C#- und Python-Prüfung vorkommen, kurz und knapp erklärt.
+                    </p>
+                    <div class="dashboard-grid" style="grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));">
+                        
+                        <div>
+                            <h3 style="color: var(--csharp); font-size: 1rem; border-bottom: 1px solid #333; padding-bottom: 5px;">Listen & Arrays (C#)</h3>
+                            <ul style="font-size: 0.85rem; margin-top: 10px;">
+                                <li><code>.Add(wert)</code> – Hängt ein neues Element ganz <b>ans Ende</b> einer Liste.</li>
+                                <li><code>.Insert(index, wert)</code> – Quetscht ein Element an einer <b>bestimmten Position</b> (Index) rein. Alles andere rutscht eins nach hinten.</li>
+                                <li><code>.Remove(wert)</code> – Sucht den Wert und <b>löscht</b> ihn aus der Liste.</li>
+                                <li><code>.Contains(wert)</code> – Die Suchmaschine: Prüft, ob ein Wert in der Liste/Array existiert. Gibt <code>true</code> oder <code>false</code> zurück.</li>
+                                <li><code>.Clear()</code> – Der Reset-Knopf. <b>Löscht alles</b> aus einer Liste (oder auch den Text aus einer TextBox).</li>
+                            </ul>
+                        </div>
+
+                        <div>
+                            <h3 style="color: var(--csharp); font-size: 1rem; border-bottom: 1px solid #333; padding-bottom: 5px;">Strings & Umwandlung (C#)</h3>
+                            <ul style="font-size: 0.85rem; margin-top: 10px;">
+                                <li><code>Convert.ToInt32(text)</code> – Macht aus einem Text (z.B. aus einer TextBox) eine <b>ganze Zahl</b> (Integer), damit du damit rechnen kannst.</li>
+                                <li><code>.ToString()</code> – Der Rückweg: Wandelt eine Zahl oder ein Objekt wieder in <b>Text</b> um (z.B. um es in einer GUI anzuzeigen).</li>
+                                <li><code>.Trim()</code> – Der Putzteufel: Schneidet versehentliche <b>Leerzeichen</b> am Anfang und Ende eines Textes gnadenlos ab.</li>
+                                <li><code>.ToLower()</code> / <code>.ToUpper()</code> – Wandelt den gesamten Text in Klein- oder Großbuchstaben um. (Perfekt für Suchfunktionen, um Groß-/Kleinschreibung zu ignorieren).</li>
+                            </ul>
+                        </div>
+
+                        <div>
+                            <h3 style="color: var(--accent); font-size: 1rem; border-bottom: 1px solid #333; padding-bottom: 5px;">Python (Micro:bit) Äquivalente</h3>
+                            <ul style="font-size: 0.85rem; margin-top: 10px;">
+                                <li><code>len(liste)</code> – Das C#-Gegenstück zu <code>.Count</code>. Gibt die <b>Anzahl</b> der Elemente in einer Liste (oder die Länge eines Textes) zurück.</li>
+                                <li><code>liste.append(wert)</code> – Das exakte C#-Gegenstück zu <code>.Add()</code>. Hängt Daten an eine Liste an.</li>
+                                <li><code>int(text)</code> / <code>str(zahl)</code> – Das Casting in Python (entspricht <code>Convert.ToInt32</code> und <code>.ToString()</code>).</li>
+                                <li><code>range(start, ende)</code> – Erzeugt eine Zahlenfolge für Schleifen. <b>Falle:</b> Die End-Zahl wird beim Zählen nicht mehr mit eingeschlossen!</li>
+                            </ul>
+                        </div>
+                    </div>
+                </section>
+
+                <section class="card full-width">
+                    <h2>Variablen-Tracking (Referenzen & In-Place)</h2>
+                    <p style="margin-bottom: 1rem; color: var(--text-muted); font-size: 0.9rem;">
+                        <strong>Grundaufgabe:</strong> Führe das Skript gedanklich aus und notiere den Zustand der Variablen nach jedem Methoden-Aufruf.
+                    </p>
+                    
+                    <div class="dashboard-grid" style="grid-template-columns: repeat(auto-fit, minmax(400px, 1fr)); gap: 2rem;">
+                        <div>
+                            <h3 style="font-size: 1rem; margin-bottom: 0.5rem; color: var(--accent);">Der Ausgangscode</h3>
+                            <pre style="margin-bottom: 0;"><code>from microbit import *
+
+def verschiebe(liste, wert):
+    neue_liste = []
+    for zahl in liste:
+        neue_liste.append(zahl + wert)
+    return neue_liste
+
+def begrenze(liste, max_wert):
+    for i in range(len(liste)):
+        if liste[i] > max_wert:
+            liste[i] = max_wert
+    return liste # Ändert die Original-Liste!
+
+def mache_symbole(liste, grenze):
+    sym_liste = []
+    for zahl in liste:
+        if zahl >= grenze:
+            sym_liste.append(Image.HAPPY)
+        else:
+            sym_liste.append(Image.SAD)
+    return sym_liste
+
+# --- Hauptprogramm ---
+start = [1, 3, 5]
+werte_a = verschiebe(start, 2)
+werte_b = begrenze(werte_a, 6)
+symbole = mache_symbole(werte_b, 5)
+start.append(len(symbole))</code></pre>
+                        </div>
+                        
+                        <div>
+                            <h3 style="font-size: 1rem; margin-bottom: 0.5rem; color: var(--accent);">Die Lösungstabelle</h3>
+                            <div style="overflow-x: auto;">
+                                <table style="width: 100%; border-collapse: collapse; text-align: left; font-size: 0.9rem;">
+                                    <thead>
+                                        <tr style="border-bottom: 2px solid var(--accent);">
+                                            <th style="padding: 0.8rem 0.5rem;">Nach Zeile...</th>
+                                            <th style="padding: 0.8rem 0.5rem; color: var(--accent);">start</th>
+                                            <th style="padding: 0.8rem 0.5rem;">werte_a</th>
+                                            <th style="padding: 0.8rem 0.5rem;">werte_b</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        <tr style="border-bottom: 1px solid #333;">
+                                            <td style="padding: 0.8rem 0.5rem;"><code>werte_a = verschiebe(...)</code></td>
+                                            <td style="padding: 0.8rem 0.5rem;">[1, 3, 5]</td>
+                                            <td style="padding: 0.8rem 0.5rem;">[3, 5, 7]</td>
+                                            <td style="padding: 0.8rem 0.5rem; color: var(--text-muted);">n/a</td>
+                                        </tr>
+                                        <tr style="border-bottom: 1px solid #333;">
+                                            <td style="padding: 0.8rem 0.5rem;"><code>werte_b = begrenze(...)</code></td>
+                                            <td style="padding: 0.8rem 0.5rem;">[1, 3, 5]</td>
+                                            <td style="padding: 0.8rem 0.5rem; color: var(--highlight);">[3, 5, 6]</td>
+                                            <td style="padding: 0.8rem 0.5rem;">[3, 5, 6]</td>
+                                        </tr>
+                                        <tr>
+                                            <td style="padding: 0.8rem 0.5rem;"><code>start.append(...)</code></td>
+                                            <td style="padding: 0.6rem 0.5rem;"><span style="border: 1px solid var(--highlight); padding: 0.2rem 0.4rem; border-radius: 4px;"><strong>[1, 3, 5, 3]</strong></span></td>
+                                            <td style="padding: 0.8rem 0.5rem;">[3, 5, 6]</td>
+                                            <td style="padding: 0.8rem 0.5rem;">[3, 5, 6]</td>
+                                        </tr>
+                                    </tbody>
+                                </table>
+                            </div>
+                            
+                            <div class="alert-box" style="margin-top: 1rem; margin-bottom: 0;">
+                                <h4 style="color: var(--warning); margin-bottom: 0.5rem;">Die Falle im Code:</h4>
+                                <p style="font-size: 0.85rem;">
+                                    Weil <code>begrenze()</code> die Werte direkt über den Index (<code>liste[i]</code>) anpasst und kein neues leeres Array erstellt, verweist <code>werte_b</code> auf denselben Speicherplatz wie <code>werte_a</code>. Änderst du das eine, ändert sich auch das andere!
+                                </p>
+                            </div>
+                        </div>
+                    </div>
+                </section>
+            </div>
+        </div>
+
+        <!-- SEITE 4: PRAXIS (Python) -->
+        <div id="page-snippets" class="page-content">
+            <div class="dashboard-grid">
+                
+                <section class="card full-width">
+                    <h2>⚠️ Fehler abfangen & File I/O (Python)</h2>
+                    <div class="dashboard-grid" style="grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));">
+                        <div>
+                            <h3 style="font-size: 1rem; color: var(--accent);">1. Fehler abfangen (Try-Except)</h3>
+                            <p style="font-size: 0.85rem; margin-bottom: 0.5rem;">Abstürze verhindern, wenn der User z.B. Text statt Zahlen tippt.</p>
+                            <pre><code>eingabe = "Hallo" # Falsche Eingabe
+
+try:
+    zahl = int(eingabe)
+    print("Zahl:", zahl)
+except ValueError:
+    print("Fehler: Das war keine Zahl!")</code></pre>
+                        </div>
+                        <div>
+                            <h3 style="font-size: 1rem; color: var(--accent);">2. Dateien lesen & schreiben (.txt)</h3>
+                            <p style="font-size: 0.85rem; margin-bottom: 0.5rem;"><code>w</code> überschreibt, <code>a</code> hängt an, <code>r</code> liest.</p>
+                            <pre><code># Schreiben (w = write)
+with open("daten.txt", "w") as file:
+    file.write("Wichtiger Text\n")
+
+# Lesen (r = read)
+with open("daten.txt", "r") as file:
+    inhalt = file.read()
+    print(inhalt)</code></pre>
+                        </div>
+                    </div>
+                </section>
+
+                <section class="card">
+                    <h2>📖 Dictionaries (Schlüssel-Wert)</h2>
+                    <pre><code># Erstellen
+person = {"Name": "Max", "Alter": 25}
+
+# Wert auslesen
+print(person["Name"]) # Ausgabe: Max
+
+# Neuen Wert hinzufügen/überschreiben
+person["Stadt"] = "Zürich"
+
+# Prüfen, ob Schlüssel existiert
+if "Alter" in person:
+    print("Alter ist vorhanden!")</code></pre>
+                </section>
+
+                <section class="card">
+                    <h2>✂️ Strings & Text Manipulation</h2>
+                    <pre><code>text = "  Apfel, Birne, Kiwi  "
+
+# 1. Leerzeichen außen entfernen
+sauber = text.strip()
+
+# 2. Am Komma zerteilen (gibt eine Liste)
+fruechte = sauber.split(",") 
+
+# 3. Text ersetzen
+neu = text.replace("Apfel", "Banane")
+
+# 4. Liste zu String bauen
+kombi = " - ".join(["A", "B"]) # "A - B"</code></pre>
+                </section>
+
+                <section class="card full-width">
+                    <h2>Microbit: Ampelanlage & Data Transformation</h2>
+                    <div class="dashboard-grid" style="grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));">
+                        <pre><code># AMPEL LOGIK
+from microbit import *
+red, orange, green = True, False, False
+
+while True:
+    if button_a.was_pressed():
+        if red and not orange:
+            red, orange = False, True
+        elif orange and not green:
+            orange, green = False, True
+        elif green and not red:
+            green, red = False, True</code></pre>
+                        <pre><code># DATEN ZU SMILEYS
+from microbit import *
+werte = [3, 5, 6]
+symbole = []
+
+for wert in werte:
+    if wert >= 5:
+        symbole.append(Image.HAPPY)
+    else:
+        symbole.append(Image.SAD)
+
+for sym in symbole:
+    display.show(sym)
+    sleep(1000)</code></pre>
+                    </div>
+                </section>
+            </div>
+        </div>
+
+        <!-- SEITE 5: C# & WINFORMS -->
+        <div id="page-csharp" class="page-content">
+            <div class="dashboard-grid">
+
+                <!-- NEU: Datentypen & Überläufe (Die 4-Punkte Falle!) -->
+                <section class="card csharp-card full-width">
+                    <h2>⚠️ C# Datentypen, Casten & Überläufe (Cutting)</h2>
+                    <div class="dashboard-grid" style="grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));">
+                        <div>
+                            <h3 style="color: var(--csharp); font-size: 1rem;">Die Grenzen kennen!</h3>
+                            <ul style="font-size: 0.85rem; margin-top: 0.5rem; margin-bottom: 0.5rem;">
+                                <li><code>byte</code> (8-Bit ohne Minus): <b>0 bis 255</b></li>
+                                <li><code>sbyte</code> (8-Bit MIT Minus): <b>-128 bis 127</b></li>
+                                <li><code>ushort</code> (16-Bit ohne Minus): <b>0 bis 65.535</b></li>
+                            </ul>
+                            <div class="alert-box" style="margin-bottom: 0; padding: 0.5rem;">
+                                <p style="font-size: 0.8rem; color: var(--warning);">
+                                    <b>Prüfungsfalle "Abstellen" (checked):</b><br>
+                                    C# ignoriert Überläufe standardmäßig leise. Mit <code>checked { ... }</code> zwingst du das Programm, sofort abzustürzen (Exception werfen), wenn ein Limit gesprengt wird!
+                                </p>
+                            </div>
+                        </div>
+                        <div>
+                            <h3 style="color: var(--csharp); font-size: 1rem;">"Cutting" (Der Überlauf)</h3>
+                            <p style="font-size: 0.85rem; margin-bottom: 0.5rem;">Wenn der Wert zu groß ist, fängt er wie ein Kilometerzähler wieder von vorne (oder im tiefsten Minus) an!</p>
+                            <pre class="code-csharp" style="margin-bottom:0;"><code>int riesig = 256;
+byte b = (byte)riesig; 
+// b ist 0! (255 war das Limit, 256 springt auf 0)
+
+int zahl = 128;
+sbyte sb = (sbyte)zahl; 
+// sb ist -128! (127 war Limit, springt ins Minus)</code></pre>
+                        </div>
+                    </div>
+                </section>
+
+                <section class="card winforms-card full-width">
+                    <h2>🖥️ GUI Drag & Drop Logik (Point X, Y)</h2>
+                    <div class="dashboard-grid" style="grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));">
+                        <div>
+                            <p style="font-size: 0.9rem; margin-bottom: 0.5rem;">Wenn du Codefenster per Drag-and-Drop anordnen musst, schau nur auf die Zeile <code>Location = new Point(X, Y);</code></p>
+                            <ul style="font-size: 0.85rem; margin-bottom: 1rem;">
+                                <li><b>X (Erste Zahl):</b> Abstand vom <i>linken</i> Rand (Je größer, desto weiter rechts).</li>
+                                <li><b>Y (Zweite Zahl):</b> Abstand vom <i>oberen</i> Rand (Je größer, desto weiter UNTEN!).</li>
+                            </ul>
+                        </div>
+                        <div>
+                            <pre class="code-winforms"><code>// Steht GANZ OBEN, da Y = 20
+TextBox txt = new TextBox();
+txt.Location = new Point(50, 20); 
+
+// Steht UNTER der TextBox, da Y = 60
+Button btn = new Button();
+btn.Location = new Point(50, 60); </code></pre>
+                        </div>
+                    </div>
+                </section>
+
+                <section class="card csharp-card full-width">
+                    <h2>Der "Rosetta Stone": Python vs. C#</h2>
+                    <table class="rosetta-table">
+                        <thead>
+                            <tr>
+                                <th>Konzept</th>
+                                <th>Python <span style="font-weight:normal;">(Dynamisch)</span></th>
+                                <th>C# <span style="font-weight:normal;">(Statisch & Streng)</span></th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <tr>
+                                <td><strong>Datentypen (Zahlen)</strong></td>
+                                <td><code>x = 5</code><br><span style="font-size: 0.75rem; color:var(--text-muted);">Kein Limit! Können unendlich groß werden. Typ wird automatisch erkannt.</span></td>
+                                <td><code class="csharp-code">int x = 5;</code><br><span style="font-size: 0.75rem; color:var(--text-muted);">Müssen VORHER deklariert werden. Int stürzt bei 2.1 Milliarden ab!</span></td>
+                            </tr>
+                            <tr>
+                                <td><strong>String verknüpfen<br>(Concatenation)</strong></td>
+                                <td><code>f"Hallo {name}"</code><br>oder<br><code>"Hallo " + name</code></td>
+                                <td><code class="csharp-code">$"Hallo {name}"</code><br>oder<br><code class="csharp-code">"Hallo " + name</code></td>
+                            </tr>
+                            <tr>
+                                <td><strong>Bedingung (If)</strong></td>
+                                <td><code>if x > 5:<br>&nbsp;&nbsp;print(x)</code></td>
+                                <td><code class="csharp-code">if (x > 5) { Console.WriteLine(x); }</code></td>
+                            </tr>
+                            <tr>
+                                <td><strong>Schleife (For)</strong></td>
+                                <td><code>for i in range(5):</code></td>
+                                <td><code class="csharp-code">for (int i = 0; i < 5; i++)</code></td>
+                            </tr>
+                            <tr>
+                                <td><strong>Typ-Umwandlung</strong></td>
+                                <td><code>zahl = int("42")</code></td>
+                                <td><code class="csharp-code">int zahl = Convert.ToInt32("42");</code></td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </section>
+
+                <section class="card winforms-card full-width">
+                    <h2>🪟 Komplettbeispiel: Strukturierte WinForms App (Personenverwaltung)</h2>
+                    <p style="font-size: 0.85rem; margin-bottom: 1rem; color: var(--text-muted);">
+                        Die perfekte Architektur für Prüfungsaufgaben. Der Code ist aufgeteilt in Einlesen (Get), Prüfen (Validate), Speichern (Save) und Ausgeben (Show).
+                    </p>
+                    <pre class="code-winforms"><code>using System;
+using System.Collections.Generic;
+using System.Windows.Forms;
+
+namespace Unterricht_01
+{
+    public partial class Form1 : Form
+    {
+        // Dies ist die Datenstruktur, in welcher die einzelnen Datensätze abgelegt werden.
+        // Die Liste verwaltet einzelne String-Arrays, wobei ein String-Array immer einer Person entspricht.
+        private List&lt;string[]&gt; people = new List&lt;string[]&gt;();
+        
+        public Form1()
+        {
+            InitializeComponent();
+        }
+
+        private void BtnSpeichern_Click(object sender, EventArgs e)
+        {
+            // Beschaffen der Formulardaten
+            string[] formValues = GetFormData();
+
+            // Formulardaten korrektausgefüllt?
+            if (ValidateFormData(formValues))
+            {
+                // Hat das Speichern des Datensatzes in die Liste people geklappt?
+                if (SaveFormData(formValues))
+                {
+                    // Löschen aller Eingabefelder
+                    ClearInputFields();
+
+                    // Hat es überhaupt Datensätze anzuzeigen?
+                    if (!ShowDataAsText())
+
+                        // Wenn nicht, entsprechende Fehlermeldung ausgeben.
+                        UserInformationBox(0);
+                }
+                else
+                {
+                    // Wenn Speichern nicht geklappt hat, dann entsprechene Fehlermeldung anzeigen
+                    // HINWEIS: Hier auf 2 korrigiert, da das Array nur Index 0, 1 und 2 hat!
+                    UserInformationBox(2);
+                }
+            }
+            else
+            {
+                // Wenn Formularfelder nicht korrekt ausgefüllt wurden, entsprechende
+                // Fehlermeldung anzeigen
+                UserInformationBox(1);
+            }
+        }
+
+        /**
+         * Setzt alle Eingabefelder wieder auf
+         * Default zurück
+         */
+        private void ClearInputFields()
+        {
+            TxtbVorname.Clear();
+            TxtbNachname.Clear();
+            NumAlter.ResetText();
+            RadMaennlich.Checked = false;
+            RadWeiblich.Checked = false;
+            RadDivers.Checked = false;
+            TxtbBemerkungen.Clear();
+        }
+
+        /**
+         * Gibt abhängig von errorCode die entsprechende Fehlermeldung aus
+         */
+        private void UserInformationBox(int errorCode)
+        {
+            // Liste mit Fehlermeldungen. Der errorCode entspricht dem Index im Array
+            string[] messages = new string[] {
+                "Keine Datensätze anzuzeigen",
+                "Bitte alle Eingabefelder korrekt ausfüllen!",
+                "Das Speichern des Datensatzes hat nicht funktioniert",
+            };
+
+            MessageBox.Show(messages[errorCode]);
+        }
+
+        /**
+         * Falls Daten in Liste vorhanden, werden diese angezeigt
+         */
+        private bool ShowDataAsText()
+        {
+            if (people.Count > 0)
+            {
+                string output = "";
+                // Diese Schleife läuft durch die Liste
+                foreach (string[] record in people)
+                {
+                    // Diese Schleife läuft durch einen einzelnen Datensatz (Array)
+                    foreach (string value in record)
+                    {
+                        // Hier werden die Werte des Datensatzes in einen String
+                        // gespeichert.
+                        output += value + " ";
+                    }
+                    // Ausgabe erhält am Ende eines Datensatzes noch einen Zeilenumbruch
+                    output += "\r\n";
+                }
+                // Ausgabe-Textbox wird gelöscht
+                TxtbPersonenListe.Clear();
+                // Ausgabe-Textbox wird mit neuer Ausgabe beschrieben
+                TxtbPersonenListe.Text = output;
+                return true;
+
+            }
+            return false;
+        }
+
+        /**
+         * Prüft. ob die Formulardaten korrekt eingegen wurden
+         */
+        private bool ValidateFormData(string[] formValues)
+        {
+            if (formValues[0].Length &lt;= 0 || formValues[1].Length &lt;= 0 || formValues[3].Length &lt;= 0)
+            {
+                return false;
+            }
+            return true;
+        }
+
+        /**
+         * Speichert Datensatz in der Liste und prüft, ob dies funktioniert hat
+         */
+        private bool SaveFormData(string[] formValues)
+        {
+            // Aktuelle Grösse vor dem Hinzufügen
+            int currentSize = people.Count;
+            // Hinzufügen des neuen Datensatzes
+            people.Add(formValues);
+            // Neue Grösse nach dem Hinzufügen
+            int newSize = people.Count;
+            // Ist neue Grösse grösser als alte Grösse?
+            if (newSize > currentSize)
+                return true;
+
+            return false;
+        }
+
+        /**
+         * Liest alle Formulardaten ein und gibt einen vollständigen
+         * Datensatz als String-Array zurück
+         */
+        private string[] GetFormData()
+        {
+            // Eingabefelder einlesen
+            string firstname = TxtbVorname.Text;
+            string lastname = TxtbNachname.Text;
+            string age = Convert.ToString(NumAlter.Value);
+            
+            string gender = "";
+            if (RadMaennlich.Checked)
+            {
+                gender = "Männlich";
+            }
+            else if (RadWeiblich.Checked)
+            {
+                gender = "Weiblich";
+            }
+            else if (RadDivers.Checked)
+            {
+                gender = "Divers";
+            }
+
+            string comment = TxtbBemerkungen.Text;
+
+            // Hier wird der Datensatz in Form eines String-Arrays zusammengesetzt
+            string[] record = new string[] { firstname, lastname, age, gender, comment };
+            return record;
+        }
+    }
+}</code></pre>
+                </section>
+
+                <section class="card csharp-card full-width">
+                    <h2>Block 5: Methoden & Überladung (C#)</h2>
+                    <div class="dashboard-grid" style="grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));">
+                        <div>
+                            <h3 style="color: var(--csharp); font-size: 1rem;">void vs. Datentyp (return)</h3>
+                            <ul style="font-size: 0.85rem; margin-top: 0.5rem;">
+                                <li><strong>void:</strong> Führt nur Code aus (kein <code>return</code> nötig).</li>
+                                <li><strong>Datentyp (int):</strong> Die Methode MUSS einen Wert per <code>return</code> zurückgeben.</li>
+                            </ul>
+                            <pre class="code-csharp"><code>public int Addiere(int a, int b)
+{
+    return a + b;
+}</code></pre>
+                        </div>
+                        <div>
+                            <h3 style="color: var(--csharp); font-size: 1rem;">Methoden-Überladung (Overloading)</h3>
+                            <p style="font-size: 0.85rem; margin-top: 0.5rem; margin-bottom: 0.5rem;">Methoden dürfen den exakt <strong>gleichen Namen</strong> haben, solange sich ihre Parameter unterscheiden!</p>
+                            <pre class="code-csharp"><code>// Version 1: Nimmt nur den Namen
+public void AddFriend(string name) { ... }
+
+// Version 2: Nimmt Namen UND Position
+public void AddFriend(string name, int position) { ... }</code></pre>
+                        </div>
+                    </div>
+                </section>
+
+                <section class="card csharp-card full-width">
+                    <h2>Block 7: Arrays vs. Listen (C#)</h2>
+                    <div class="dashboard-grid" style="grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));">
+                        <div>
+                            <h3 style="color: var(--csharp); font-size: 1rem;">Array (Fixe Größe)</h3>
+                            <p style="font-size: 0.85rem; margin-bottom: 0.5rem;">Einmal definiert, ändert sich die Größe nie wieder.</p>
+                            <pre class="code-csharp"><code>int[] zahlen = new int[3]; 
+zahlen[0] = 5;</code></pre>
+
+                            <h3 style="color: var(--csharp); font-size: 1rem; margin-top: 1rem;">Liste (Flexible Größe)</h3>
+                            <p style="font-size: 0.85rem; margin-bottom: 0.5rem;">Wächst dynamisch mit.</p>
+                            <pre class="code-csharp"><code>List&lt;string&gt; namen = new List&lt;string&gt;();
+namen.Add("Max"); // Klatscht Max ganz ans Ende
+namen.Insert(0, "Anna"); // Zwingt Anna an Index 0</code></pre>
+                        </div>
+                        <div>
+                            <div class="alert-box" style="margin-top: 0; margin-bottom: 1rem;">
+                                <h4 style="color: var(--warning); margin-bottom: 0.5rem;">🚨 Prüfungs-Falle: Count vs. Length</h4>
+                                <p style="font-size: 0.85rem;">
+                                    <strong>Array-Größe</strong> = <code>array.Length</code><br>
+                                    <strong>Listen-Größe</strong> = <code>liste.Count</code><br>
+                                    <i>Tipp: Mische das auf keinen Fall in der Prüfung!</i>
+                                </p>
+                            </div>
+                        </div>
+                    </div>
+                </section>
+
+            </div>
+        </div>
+
+        <!-- SEITE 6: KRYPTO & ALGORITHMEN -->
+        <div id="page-krypto" class="page-content">
+            <div class="dashboard-grid">
+                
+                <section class="card full-width">
+                    <h2>Algorithmus: Bubble Sort (Smart)</h2>
+                    <div class="visualizer-container" id="array-container"></div>
+                    <div class="btn-group">
+                        <button class="action-btn" onclick="generateArray()">Neue Zahlen</button>
+                        <button class="action-btn" onclick="bubbleSortVisual()">Sortieren Starten</button>
+                    </div>
+                    
+                    <pre style="margin-top: 0.5rem;"><code>zahlen = [9, 3, -1, 12, 7, 4, 8, 5]
+for durchlauf in range(len(zahlen)):
+    getauscht = False
+    for i in range(len(zahlen) - 1 - durchlauf):
+        if zahlen[i] > zahlen[i+1]:
+            zahlen[i], zahlen[i+1] = zahlen[i+1], zahlen[i]
+            getauscht = True
+    if not getauscht:
+        break</code></pre>
+                </section>
+
+                <section class="card full-width">
+                    <h2>Kryptographie: Caesar-Chiffre (Robust)</h2>
+                    <pre><code>def caesar_encrypt(text, shift):
+    result = ""
+    for char in text:
+        if char.isalpha():
+            ascii_base = ord('A') if char.isupper() else ord('a')
+            shifted = chr((ord(char) - ascii_base + shift) % 26 + ascii_base)
+            result += shifted
+        else:
+            result += char
+    return result
+
+def caesar_decrypt(text, shift):
+    return caesar_encrypt(text, -shift)</code></pre>
+                </section>
+
+            </div>
+        </div>
+    </main>
+
+    <!-- JavaScript -->
+    <script>
+        // --- 1. Tab Navigation & Live-Suche ---
+        function switchPage(pageId) {
+            document.getElementById('searchInput').value = '';
+            
+            let pages = document.getElementsByClassName('page-content');
+            for(let i = 0; i < pages.length; i++) {
+                pages[i].classList.remove('active');
+                pages[i].classList.remove('search-mode');
+            }
+            let navLinks = document.getElementsByClassName('nav-link');
+            for(let i = 0; i < navLinks.length; i++) {
+                navLinks[i].classList.remove('active');
+            }
+            
+            document.querySelectorAll('.card').forEach(c => c.style.display = 'block');
+            
+            document.getElementById(pageId).classList.add('active');
+            event.currentTarget.classList.add('active');
+            
+            document.getElementById('mainNav').style.opacity = '1';
+        }
+
+        function filterCards() {
+            let input = document.getElementById('searchInput').value.toLowerCase();
+            let cards = document.querySelectorAll('.card');
+            let pages = document.querySelectorAll('.page-content');
+            
+            if (input.length > 0) {
+                pages.forEach(p => p.classList.add('search-mode'));
+                document.getElementById('mainNav').style.opacity = '0.3';
+                
+                cards.forEach(card => {
+                    let text = card.innerText.toLowerCase();
+                    card.style.display = text.includes(input) ? 'block' : 'none';
+                });
+            } else {
+                pages.forEach(p => p.classList.remove('search-mode'));
+                cards.forEach(card => card.style.display = 'block');
+                document.getElementById('mainNav').style.opacity = '1';
+            }
+        }
+
+        // --- 2. Notizen Auto-Save ---
+        const taskPad = document.getElementById('task-pad');
+        const saveStatus = document.getElementById('save-status');
+
+        if (localStorage.getItem('devTasks')) {
+            taskPad.value = localStorage.getItem('devTasks');
+        }
+
+        taskPad.addEventListener('input', () => {
+            localStorage.setItem('devTasks', taskPad.value);
+            saveStatus.innerText = 'Speichere...';
+            saveStatus.style.color = 'var(--accent)';
+            setTimeout(() => {
+                saveStatus.innerText = 'Lokal gespeichert.';
+                saveStatus.style.color = 'var(--text-muted)';
+            }, 800);
+        });
+
+        function clearTasks() {
+            if(confirm("Möchtest du alle Notizen löschen?")) {
+                localStorage.removeItem('devTasks');
+                taskPad.value = '';
+            }
+        }
+
+        // --- 3. Prüfungs-Timer ---
+        let timerInterval;
+        let timeRemaining = 0;
+
+        function updateTimerDisplay() {
+            if(timeRemaining < 0) timeRemaining = 0;
+            let m = Math.floor(timeRemaining / 60);
+            let s = timeRemaining % 60;
+            document.getElementById('time-left').innerText = 
+                (m < 10 ? '0' : '') + m + ':' + (s < 10 ? '0' : '') + s;
+        }
+
+        function startTimer() {
+            clearInterval(timerInterval);
+            let mins = document.getElementById('timer-mins').value;
+            timeRemaining = mins * 60;
+            updateTimerDisplay();
+            
+            timerInterval = setInterval(() => {
+                timeRemaining--;
+                updateTimerDisplay();
+                if(timeRemaining <= 0) {
+                    clearInterval(timerInterval);
+                    document.getElementById('time-left').style.color = 'var(--highlight)';
+                    alert("Zeit abgelaufen!");
+                }
+            }, 1000);
+        }
+
+        function stopTimer() {
+            clearInterval(timerInterval);
+            document.getElementById('timer-mins').value = "60";
+            document.getElementById('time-left').innerText = "60:00";
+            document.getElementById('time-left').style.color = 'var(--accent)';
+        }
+
+        // --- 4. Visualizer (Bubble Sort) ---
+        const container = document.getElementById('array-container');
+        let array = [];
+        let isSorting = false;
+
+        function generateArray() {
+            if (isSorting) return;
+            container.innerHTML = '';
+            array = [];
+            for (let i = 0; i < 12; i++) {
+                const value = Math.floor(Math.random() * 80) + 20; 
+                array.push(value);
+                const bar = document.createElement('div');
+                bar.classList.add('bar');
+                bar.style.height = `${value}px`;
+                bar.innerText = value;
+                container.appendChild(bar);
+            }
+        }
+
+        const sleep = (ms) => new Promise(resolve => setTimeout(resolve, ms));
+
+        async function bubbleSortVisual() {
+            if (isSorting) return;
+            isSorting = true;
+            let bars = document.querySelectorAll('.bar');
+            let n = array.length;
+            for (let i = 0; i < n; i++) {
+                let swapped = false;
+                for (let j = 0; j < n - i - 1; j++) {
+                    bars[j].style.backgroundColor = 'var(--highlight)';
+                    bars[j+1].style.backgroundColor = 'var(--highlight)';
+                    await sleep(250); 
+                    
+                    if (array[j] > array[j+1]) {
+                        let temp = array[j];
+                        array[j] = array[j+1];
+                        array[j+1] = temp;
+                        
+                        bars[j].style.height = `${array[j]}px`;
+                        bars[j].innerText = array[j];
+                        
+                        bars[j+1].style.height = `${array[j+1]}px`;
+                        bars[j+1].innerText = array[j+1];
+                        
+                        swapped = true;
+                    }
+                    bars[j].style.backgroundColor = 'var(--accent)';
+                    bars[j+1].style.backgroundColor = 'var(--accent)';
+                }
+                bars[n - i - 1].style.backgroundColor = 'var(--sorted)';
+                if (!swapped) break;
+            }
+            bars.forEach(b => b.style.backgroundColor = 'var(--sorted)');
+            isSorting = false;
+        }
+
+        generateArray();
+    </script>
+</body>
+</html>
